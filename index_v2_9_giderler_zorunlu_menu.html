@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Taksi Operasyon V2.9</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--dark:#111827;--blue:#2563eb;--green:#16a34a;--red:#dc2626;--yellow:#ca8a04;--muted:#6b7280;--line:#e5e7eb}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:#111827}
+.header{background:var(--dark);color:white;padding:18px 16px;border-radius:0 0 24px 24px}
+.header h1{margin:0;font-size:23px}.header p{margin:6px 0 0;color:#cbd5e1;font-size:14px}
+.wrap{padding:14px;max-width:1080px;margin:auto}
+.card{background:white;padding:16px;border-radius:18px;box-shadow:0 8px 22px rgba(0,0,0,.08);margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.nav{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px}
+button{width:100%;padding:13px;border:0;border-radius:14px;background:var(--blue);color:white;font-weight:800;font-size:15px;margin-top:10px;cursor:pointer}
+.green{background:var(--green)}.dark{background:var(--dark)}.red{background:var(--red)}.gray{background:#6b7280}.yellow{background:var(--yellow)}
+input,select,textarea{width:100%;padding:13px;border:1px solid #cbd5e1;border-radius:12px;font-size:16px;background:white}
+label{display:block;margin:11px 0 6px;font-weight:700}
+.box{padding:14px;border-radius:16px;background:#f8fafc;border:1px solid var(--line)}
+.box b{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
+.box span{font-size:22px;font-weight:800}
+.greenText span{color:var(--green)}.redText span{color:var(--red)}.blueText span{color:var(--blue)}.yellowText span{color:var(--yellow)}
+table{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px}
+td,th{padding:9px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top}
+td:last-child,th:last-child{text-align:right}
+.hidden{display:none}
+.status{padding:12px;border-radius:14px;background:#eef2ff;color:#1e40af;margin:10px 0;line-height:1.4}
+.err{background:#fee2e2;color:#991b1b}.ok{background:#ecfdf5;color:#166534}
+.warn{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}
+.badge{padding:5px 9px;border-radius:999px;font-size:12px;font-weight:800;background:#eef2ff;color:#1d4ed8}
+small{color:#6b7280}
+@media(max-width:720px){.grid,.nav{grid-template-columns:1fr}table{font-size:12px}.wrap{padding:10px}}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🚕 Taksi Operasyon V2.9</h1>
+  <p>Tek giriş • Admin • Araç Sahibi • Şoför</p>
+</div>
+
+<div class="wrap">
+<section id="loginScreen">
+  <div class="card">
+    <h2>Giriş Yap</h2>
+    <div id="loginStatus" class="status">Telefon ve şifre ile giriş yap. Sistem rolünü otomatik algılar.</div>
+    <label>Telefon</label>
+    <input id="phone" placeholder="05xxxxxxxxx">
+    <label>Şifre</label>
+    <input id="password" type="password" placeholder="Şifre">
+    <label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-weight:700;">
+      <input type="checkbox" id="rememberMe" style="width:auto;">
+      Beni Hatırla
+    </label>
+    <button onclick="login()">Giriş Yap</button>
+  </div>
+</section>
+
+<section id="appScreen" class="hidden">
+  <div class="card">
+    <b id="activeUser">Kullanıcı</b>
+    <button class="dark" onclick="logout()">Çıkış</button>
+  </div>
+
+  <div id="adminPanel" class="hidden">
+    <div class="nav">
+      <button onclick="tabAdmin('adminHome')">Özet</button>
+      <button onclick="tabAdmin('adminAddOwner')">Araç Sahibi Ekle</button>
+      <button onclick="tabAdmin('adminOwners')">Araç Sahipleri</button>
+      <button onclick="tabAdmin('adminPasswords')">Şifre Sıfırla</button>
+      <button onclick="tabAdmin('adminUsers')">Kullanıcılar</button>
+    </div>
+    <div id="adminHome" class="card"></div>
+    <div id="adminAddOwner" class="card hidden">
+      <h2>Yeni Araç Sahibi Oluştur</h2>
+      <div class="status warn">Araç sahibi hesabı, owner kaydı ve plakalar otomatik oluşturulur.</div>
+      <label>Ad Soyad</label><input id="ownerName" placeholder="Örn: Ali Yılmaz">
+      <label>Telefon</label><input id="ownerPhone" placeholder="05xxxxxxxxx">
+      <label>Geçici Şifre</label><input id="ownerPassword" value="123456">
+      <label>Araç Plakaları</label><textarea id="ownerPlates" rows="4" placeholder="Her plakayı ayrı satıra yazın.&#10;06 T 1421&#10;06 T 0088"></textarea>
+      <button class="green" onclick="createOwner()">Araç Sahibini Oluştur</button>
+    </div>
+    <div id="adminOwners" class="card hidden"></div>
+    <div id="adminPasswords" class="card hidden">
+      <h2>Şifre Sıfırla</h2>
+      <label>Kullanıcı Seç</label><select id="passwordUser"></select>
+      <label>Yeni Geçici Şifre</label><input id="newPassword" value="123456">
+      <button class="yellow" onclick="resetPassword()">Şifreyi Güncelle</button>
+    </div>
+    <div id="adminUsers" class="card hidden"></div>
+  </div>
+
+  <div id="ownerPanel" class="hidden">
+    <div class="nav">
+      <button onclick="tabOwner('ownerHome')">Özet</button>
+      <button onclick="tabOwner('ownerDrivers')">Şoförler</button>
+      <button onclick="tabOwner('ownerCollect')">Tahsilat</button>
+      <button onclick="tabOwner('ownerReports')">Raporlar</button>
+      <button onclick="document.getElementById('ownerPasswordAlways').scrollIntoView({behavior:'smooth'});">Şifre</button>
+    </div>
+    <div id="ownerPasswordAlways" class="card">
+      <h2>Şifre Değiştir</h2>
+      <div class="status warn">Araç sahibi isterse buradan kendi şifresini değiştirebilir.</div>
+      <label>Eski Şifre</label>
+      <input id="ownerOldPassword" type="password" placeholder="Mevcut şifre">
+      <label>Yeni Şifre</label>
+      <input id="ownerNewPassword" type="password" placeholder="Yeni şifre">
+      <label>Yeni Şifre Tekrar</label>
+      <input id="ownerNewPassword2" type="password" placeholder="Yeni şifre tekrar">
+      <button class="green" onclick="changeOwnPassword()">Şifremi Güncelle</button>
+    </div>
+    <div id="ownerHome" class="card"></div>
+    <div id="ownerDrivers" class="card hidden"></div>
+    <div id="ownerCollect" class="card hidden"></div>
+    <div id="ownerReports" class="card hidden"></div>
+    <div id="ownerExpenses" class="card hidden"></div>
+    <div id="ownerPassword" class="card hidden">
+      <h2>Şifre Değiştir</h2>
+      <div class="status warn">Eski şifreni yazıp yeni şifreni belirle.</div>
+      <label>Eski Şifre</label><input id="ownerOldPassword" type="password" placeholder="Mevcut şifre">
+      <label>Yeni Şifre</label><input id="ownerNewPassword" type="password" placeholder="Yeni şifre">
+      <label>Yeni Şifre Tekrar</label><input id="ownerNewPassword2" type="password" placeholder="Yeni şifre tekrar">
+      <button class="green" onclick="changeOwnPassword()">Şifremi Güncelle</button>
+    </div>
+  </div>
+
+  <div id="driverPanel" class="hidden">
+    <div class="nav">
+      <button onclick="tabDriver('driverHome')">Ana Ekran</button>
+      <button onclick="tabDriver('driverShift')">Vardiya</button>
+      <button onclick="tabDriver('driverBalance')">Bakiye</button>
+      <button onclick="tabDriver('driverExpense')">Gider</button>
+      <button onclick="tabDriver('driverReport')">Raporum</button>
+    </div>
+    <div id="driverHome" class="card"></div>
+    <div id="driverShift" class="card hidden"></div>
+    <div id="driverBalance" class="card hidden"></div>
+    <div id="driverExpense" class="card hidden"></div>
+    <div id="driverReport" class="card hidden"></div>
+  </div>
+</section>
+</div>
+
+<script>
+const SUPABASE_URL="https://pteyztqztxbqsznxjvsh.supabase.co";
+const SUPABASE_KEY="sb_publishable_Yd61aleN_GOogVoZIoQ_cw_ZzhTxXeL";
+let currentUser=null,currentOwner=null,currentDriver=null;
+let allUsers=[],allOwners=[],allVehicles=[],allDrivers=[];
+
+function money(x){return Number(x||0).toLocaleString("tr-TR",{minimumFractionDigits:2,maximumFractionDigits:2})+" TL"}
+function todayISO(){return new Date().toISOString().slice(0,10)}
+function setLoginStatus(t,type=""){let e=document.getElementById("loginStatus");e.className="status "+type;e.innerText=t}
+async function sb(path,options={}){
+ const res=await fetch(SUPABASE_URL+"/rest/v1/"+path,{...options,headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":options.prefer||"",...(options.headers||{})}});
+ if(!res.ok){throw new Error(res.status+" - "+await res.text())}
+ if(res.status===204)return null;
+ const text=await res.text();return text?JSON.parse(text):null;
+}
+
+function hidePanels(){["adminPanel","ownerPanel","driverPanel"].forEach(x=>document.getElementById(x).classList.add("hidden"))}
+function logout(){localStorage.removeItem("taksi_remember_user");currentUser=null;currentOwner=null;currentDriver=null;document.getElementById("appScreen").classList.add("hidden");document.getElementById("loginScreen").classList.remove("hidden");hidePanels()}
+function tabAdmin(id){["adminHome","adminAddOwner","adminOwners","adminPasswords","adminUsers"].forEach(x=>document.getElementById(x).classList.toggle("hidden",x!==id))}
+function tabOwner(id){if(id==="ownerExpenses"){showOwnerExpensesDirect();return;}["ownerHome","ownerDrivers","ownerCollect","ownerReports","ownerExpenses","ownerPassword"].forEach(x=>{const el=document.getElementById(x); if(el) el.classList.toggle("hidden",x!==id);})}
+function tabDriver(id){["driverHome","driverShift","driverBalance","driverExpense","driverReport"].forEach(x=>document.getElementById(x).classList.toggle("hidden",x!==id))}
+
+function saveRememberUser(user){
+  const remember=document.getElementById("rememberMe");
+  if(remember && remember.checked){
+    localStorage.setItem("taksi_remember_user",JSON.stringify({id:user.id,full_name:user.full_name,phone:user.phone,role:user.role,is_active:user.is_active}));
+  }
+}
+async function openPanelForUser(u){
+  currentUser=u;
+  document.getElementById("loginScreen").classList.add("hidden");
+  document.getElementById("appScreen").classList.remove("hidden");
+  hidePanels();
+  const roleName=u.role==="admin"?"Admin":u.role==="owner"?"Araç Sahibi":u.role==="driver"?"Şoför":u.role;
+  document.getElementById("activeUser").innerText=u.full_name+" / "+roleName;
+  if(u.role==="admin")await loadAdmin();
+  else if(u.role==="owner")await loadOwner();
+  else if(u.role==="driver")await loadDriver();
+  else alert("Bu rol desteklenmiyor: "+u.role);
+}
+async function autoLoginIfRemembered(){
+  try{
+    const raw=localStorage.getItem("taksi_remember_user");
+    if(!raw)return;
+    const saved=JSON.parse(raw);
+    if(!saved||!saved.id)return;
+    const users=await sb("users?select=*&id=eq."+saved.id+"&limit=1");
+    if(!users.length||!users[0].is_active){localStorage.removeItem("taksi_remember_user");return}
+    await openPanelForUser(users[0]);
+  }catch(e){console.error(e);localStorage.removeItem("taksi_remember_user")}
+}
+async function login(){
+ try{
+  setLoginStatus("Giriş kontrol ediliyor...");
+  const phone=document.getElementById("phone").value.trim(),pass=document.getElementById("password").value.trim();
+  const users=await sb("users?select=*&phone=eq."+encodeURIComponent(phone)+"&password=eq."+encodeURIComponent(pass)+"&limit=1");
+  if(!users.length){setLoginStatus("Telefon veya şifre hatalı.","err");return}
+  const u=users[0]; if(!u.is_active){setLoginStatus("Kullanıcı pasif.","err");return}
+  saveRememberUser(u);
+  await openPanelForUser(u);
+ }catch(e){console.error(e);setLoginStatus("Giriş hatası: "+e.message,"err")}
+}
+
+// ADMIN
+async function refreshAdminData(){
+ allUsers=await sb("users?select=*&order=id.asc");
+ allOwners=await sb("owners?select=*,users(full_name,phone,is_active)&order=id.asc");
+ allVehicles=await sb("vehicles?select=*,owners(user_id,users(full_name,phone))&order=id.asc");
+ allDrivers=await sb("drivers?select=*,users(full_name,phone,is_active),vehicles(plate),owners(user_id)&order=id.asc");
+}
+async function loadAdmin(){document.getElementById("adminPanel").classList.remove("hidden");await refreshAdminData();renderAdminHome();renderAdminOwners();renderPasswordUsers();renderAdminUsers();tabAdmin("adminHome")}
+function ownerVehicles(ownerId){return allVehicles.filter(v=>v.owner_id===ownerId)}
+function ownerDrivers(ownerId){return allDrivers.filter(d=>d.owner_id===ownerId)}
+function renderAdminHome(){
+ document.getElementById("adminHome").innerHTML=`<h2>Admin Özeti</h2><div class="grid">
+ <div class="box blueText"><b>Araç Sahibi</b><span>${allOwners.length}</span></div>
+ <div class="box blueText"><b>Araç</b><span>${allVehicles.length}</span></div>
+ <div class="box yellowText"><b>Şoför</b><span>${allDrivers.length}</span></div>
+ <div class="box greenText"><b>Kullanıcı</b><span>${allUsers.length}</span></div></div>`;
+}
+async function createOwner(){
+ try{
+  const name=document.getElementById("ownerName").value.trim(),phone=document.getElementById("ownerPhone").value.trim(),password=document.getElementById("ownerPassword").value.trim()||"123456",plateText=document.getElementById("ownerPlates").value.trim();
+  if(!name||!phone){alert("Ad soyad ve telefon zorunlu.");return}
+  const existing=await sb("users?select=id&phone=eq."+encodeURIComponent(phone)+"&limit=1");if(existing.length){alert("Bu telefon kayıtlı.");return}
+  const u=await sb("users",{method:"POST",prefer:"return=representation",body:JSON.stringify({full_name:name,phone,role:"owner",password,is_active:true})});
+  const o=await sb("owners",{method:"POST",prefer:"return=representation",body:JSON.stringify({user_id:u[0].id,is_active:true})});
+  const ownerId=o[0].id;const plates=plateText.split("\n").map(x=>x.trim()).filter(Boolean);
+  for(const plate of plates)await sb("vehicles",{method:"POST",prefer:"return=minimal",body:JSON.stringify({owner_id:ownerId,plate,is_active:true})});
+  alert("Araç sahibi oluşturuldu: "+phone+" / "+password);
+  document.getElementById("ownerName").value="";document.getElementById("ownerPhone").value="";document.getElementById("ownerPlates").value="";
+  await loadAdmin();tabAdmin("adminOwners");
+ }catch(e){alert("Kayıt hatası: "+e.message)}
+}
+function renderAdminOwners(){
+ document.getElementById("adminOwners").innerHTML=`<h2>Araç Sahipleri</h2><table><tr><th>Araç Sahibi</th><th>Araçlar</th><th>Şoför</th><th>Durum</th><th>İşlem</th></tr>
+ ${allOwners.map(o=>`<tr><td>${o.users?.full_name||"-"}<br><small>${o.users?.phone||""}</small></td><td>${ownerVehicles(o.id).map(v=>v.plate).join("<br>")||"-"}</td><td>${ownerDrivers(o.id).length}</td><td><span class="badge">${o.is_active&&o.users?.is_active?"Aktif":"Pasif"}</span></td><td><button class="${o.is_active?"red":"green"}" onclick="toggleOwner(${o.id},${o.user_id},${!o.is_active})">${o.is_active?"Pasife Al":"Aktif Yap"}</button><button class="gray" onclick="promptAddVehicle(${o.id})">Araç Ekle</button></td></tr>`).join("")}</table>`;
+}
+async function toggleOwner(ownerId,userId,newStatus){await sb("owners?id=eq."+ownerId,{method:"PATCH",prefer:"return=minimal",body:JSON.stringify({is_active:newStatus})});await sb("users?id=eq."+userId,{method:"PATCH",prefer:"return=minimal",body:JSON.stringify({is_active:newStatus})});await loadAdmin();tabAdmin("adminOwners")}
+async function promptAddVehicle(ownerId){const plate=prompt("Eklenecek plaka:");if(!plate)return;await sb("vehicles",{method:"POST",prefer:"return=minimal",body:JSON.stringify({owner_id:ownerId,plate:plate.trim(),is_active:true})});await loadAdmin();tabAdmin("adminOwners")}
+function renderPasswordUsers(){document.getElementById("passwordUser").innerHTML=allUsers.map(u=>`<option value="${u.id}">${u.full_name} / ${u.role} / ${u.phone}</option>`).join("")}
+async function resetPassword(){const userId=Number(document.getElementById("passwordUser").value),newPass=document.getElementById("newPassword").value.trim();if(!userId||!newPass){alert("Kullanıcı ve şifre zorunlu.");return}await sb("users?id=eq."+userId,{method:"PATCH",prefer:"return=minimal",body:JSON.stringify({password:newPass})});alert("Şifre güncellendi.");await loadAdmin();tabAdmin("adminPasswords")}
+function renderAdminUsers(){document.getElementById("adminUsers").innerHTML=`<h2>Kullanıcılar</h2><table><tr><th>Ad</th><th>Telefon</th><th>Rol</th><th>Durum</th></tr>${allUsers.map(u=>`<tr><td>${u.full_name||"-"}</td><td>${u.phone||"-"}</td><td>${u.role||"-"}</td><td>${u.is_active?"Aktif":"Pasif"}</td></tr>`).join("")}</table>`}
+
+// OWNER
+async function getOwnerDrivers(){return await sb("drivers?select=id,is_active,vehicle_id,user_id,users(full_name,phone,is_active),vehicles(plate)&owner_id=eq."+currentOwner.id+"&order=id.asc")}
+async function getOwnerShifts(){return await sb("shifts?select=*,drivers(owner_id,users(full_name),vehicles(plate))&drivers.owner_id=eq."+currentOwner.id+"&order=shift_date.desc")}
+async function getOwnerPayments(){return await sb("payments?select=id,driver_id,amount,payment_type,approved,created_at,drivers(owner_id,users(full_name),vehicles(plate))&drivers.owner_id=eq."+currentOwner.id+"&approved=eq.true&order=id.desc")}
+async function getOwnerExpenses(){
+ return await sb("expenses?select=*,drivers(users(full_name)),vehicles(plate)&owner_id=eq."+currentOwner.id+"&order=expense_date.desc");
+}
+function approvedExpenseTotal(expenses){
+ return expenses.filter(e=>e.approved===true || e.status==="Onaylandı").reduce((a,e)=>a+Number(e.amount||0),0);
+}
+function expenseStatus(e){
+ if(e.status) return e.status;
+ return e.approved ? "Onaylandı" : "Bekliyor";
+}
+function shiftTotal(a){return a.reduce((s,x)=>s+Number(x.total_income||0),0)}
+function payTotal(a){return a.reduce((s,x)=>s+Number(x.amount||0),0)}
+function kmTotal(a){return a.reduce((s,x)=>{if(x.opening_km===null||x.closing_km===null||x.opening_km===undefined||x.closing_km===undefined)return s;return s+Number(x.closing_km-x.opening_km)},0)}
+
+function ensureOwnerExpensesUI(){
+  const ownerPanel = document.getElementById("ownerPanel");
+  if(!ownerPanel) return;
+
+  const nav = ownerPanel.querySelector(".nav");
+  if(nav && !document.getElementById("ownerExpensesNavBtn")){
+    const btn = document.createElement("button");
+    btn.id = "ownerExpensesNavBtn";
+    btn.textContent = "Giderler";
+    btn.onclick = function(){ showOwnerExpensesDirect(); };
+    const passBtn = Array.from(nav.querySelectorAll("button")).find(b => b.textContent.trim()==="Şifre");
+    if(passBtn) nav.insertBefore(btn, passBtn);
+    else nav.appendChild(btn);
+  }
+
+  if(!document.getElementById("ownerExpenses")){
+    const div = document.createElement("div");
+    div.id = "ownerExpenses";
+    div.className = "card hidden";
+    const passwordDiv = document.getElementById("ownerPasswordAlways") || document.getElementById("ownerPassword");
+    if(passwordDiv && passwordDiv.parentNode) passwordDiv.parentNode.insertBefore(div, passwordDiv);
+    else ownerPanel.appendChild(div);
+  }
+}
+
+function hideOwnerCards(){
+  ["ownerHome","ownerDrivers","ownerCollect","ownerReports","ownerExpenses","ownerPassword"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.classList.add("hidden");
+  });
+}
+
+async function showOwnerExpensesDirect(){
+  ensureOwnerExpensesUI();
+  hideOwnerCards();
+  const el=document.getElementById("ownerExpenses");
+  if(el){
+    el.classList.remove("hidden");
+    el.style.display="block";
+    el.innerHTML="<h2>Gider Onayları</h2><div class='status'>Gider kayıtları yükleniyor...</div>";
+  }
+  await renderOwnerExpenses();
+  if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+async function getOwnerExpenses(){
+ return await sb("expenses?select=*,drivers(users(full_name)),vehicles(plate)&owner_id=eq."+currentOwner.id+"&order=expense_date.desc");
+}
+function approvedExpenseTotal(expenses){
+ return expenses.filter(e=>e.approved===true || e.status==="Onaylandı").reduce((a,e)=>a+Number(e.amount||0),0);
+}
+function expenseStatus(e){
+ if(e.status) return e.status;
+ return e.approved ? "Onaylandı" : "Bekliyor";
+}
+
+async function renderOwnerExpenses(){
+ ensureOwnerExpensesUI();
+ const el=document.getElementById("ownerExpenses");
+ if(!el) return;
+ try{
+  const expenses=await getOwnerExpenses();
+  const pending=expenses.filter(e=>expenseStatus(e)==="Bekliyor");
+  const approved=expenses.filter(e=>expenseStatus(e)==="Onaylandı");
+  const rejected=expenses.filter(e=>expenseStatus(e)==="Reddedildi");
+
+  el.innerHTML=`
+    <h2>Gider Onayları</h2>
+    <div class="status warn">Şoförün gönderdiği giderler burada görünür. Onaylanan gider net nakit bakiyeden düşer.</div>
+    <div class="grid">
+      <div class="box yellowText"><b>Bekleyen</b><span>${pending.length}</span></div>
+      <div class="box greenText"><b>Onaylı Gider</b><span>${money(approvedExpenseTotal(approved))}</span></div>
+      <div class="box redText"><b>Reddedilen</b><span>${rejected.length}</span></div>
+    </div>
+    <h3>Gider Kayıtları</h3>
+    <table>
+      <tr><th>Tarih</th><th>Şoför</th><th>Tür</th><th>Tutar</th><th>Durum</th><th>İşlem</th></tr>
+      ${expenses.map(e=>`
+        <tr>
+          <td>${e.expense_date||"-"}</td>
+          <td>${e.drivers?.users?.full_name||"-"}<br><small>${e.vehicles?.plate||""}</small></td>
+          <td>${e.expense_type||"-"}<br><small>${e.note||""}</small></td>
+          <td>${money(e.amount)}</td>
+          <td>${expenseStatus(e)}</td>
+          <td>${expenseStatus(e)==="Bekliyor"
+            ? `<button class="green" onclick="approveExpense(${e.id})">Onayla</button><button class="red" onclick="rejectExpense(${e.id})">Reddet</button>`
+            : "-"}
+          </td>
+        </tr>
+      `).join("") || "<tr><td colspan='6'>Henüz gider kaydı yok.</td></tr>"}
+    </table>
+  `;
+ }catch(e){
+  console.error(e);
+  el.innerHTML=`<h2>Gider Onayları</h2><div class="status err">Giderler yüklenemedi: ${e.message}</div>`;
+ }
+}
+
+async function approveExpense(id){
+ await sb("expenses?id=eq."+id,{method:"PATCH",prefer:"return=minimal",body:JSON.stringify({approved:true,status:"Onaylandı"})});
+ await refreshOwner();
+ await showOwnerExpensesDirect();
+}
+async function rejectExpense(id){
+ await sb("expenses?id=eq."+id,{method:"PATCH",prefer:"return=minimal",body:JSON.stringify({approved:false,status:"Reddedildi"})});
+ await refreshOwner();
+ await showOwnerExpensesDirect();
+}
+
+
+async function loadOwner(){
+ const owners=await sb("owners?select=*&user_id=eq."+currentUser.id+"&limit=1");if(!owners.length||!owners[0].is_active){alert("Araç sahibi pasif.");logout();return}
+ currentOwner=owners[0];document.getElementById("ownerPanel").classList.remove("hidden");ensureOwnerExpensesUI();await refreshOwner();tabOwner("ownerHome");
+}
+async function refreshOwner(){
+  try{await renderOwnerHome()}catch(e){console.error("ownerHome",e);document.getElementById("ownerHome").innerHTML="<div class='status err'>Özet yüklenemedi: "+e.message+"</div>"}
+  try{await renderOwnerDrivers()}catch(e){console.error("ownerDrivers",e);document.getElementById("ownerDrivers").innerHTML="<div class='status err'>Şoförler yüklenemedi: "+e.message+"</div>"}
+  try{await renderOwnerCollect()}catch(e){console.error("ownerCollect",e);document.getElementById("ownerCollect").innerHTML="<div class='status err'>Tahsilat yüklenemedi: "+e.message+"</div>"}
+  try{await renderOwnerReports()}catch(e){console.error("ownerReports",e);document.getElementById("ownerReports").innerHTML="<div class='status err'>Raporlar yüklenemedi: "+e.message+"</div>"}
+}
+async function renderOwnerHome(){
+ const vehicles=await sb("vehicles?select=*&owner_id=eq."+currentOwner.id+"&order=id.asc"),drivers=await getOwnerDrivers(),shifts=await getOwnerShifts(),payments=await getOwnerPayments(),expenses=await getOwnerExpenses();
+ const total=shiftTotal(shifts),cash=shifts.reduce((a,x)=>a+Number(x.cash_amount||0),0),card=shifts.reduce((a,x)=>a+Number(x.card_amount||0),0),paid=payTotal(payments),exp=approvedExpenseTotal(expenses);
+ document.getElementById("ownerHome").innerHTML=`<h2>Özet</h2><div class="grid"><div class="box blueText"><b>Araç</b><span>${vehicles.length}</span></div><div class="box blueText"><b>Şoför</b><span>${drivers.length}</span></div><div class="box greenText"><b>Toplam Hasılat</b><span>${money(total)}</span></div><div class="box greenText"><b>Nakit Toplam</b><span>${money(cash)}</span></div><div class="box blueText"><b>POS/Visa</b><span>${money(card)}</span></div><div class="box yellowText"><b>Onaylı Gider</b><span>${money(exp)}</span></div><div class="box yellowText"><b>Tahsilat</b><span>${money(paid)}</span></div><div class="box redText"><b>Net Nakit Bakiye</b><span>${money(cash-paid-exp)}</span></div></div>`;
+}
+async function renderOwnerDrivers(){
+ const drivers=await getOwnerDrivers(),vehicles=await sb("vehicles?select=*&owner_id=eq."+currentOwner.id+"&order=id.asc");
+ const vehicleOptions=vehicles.map(v=>`<option value="${v.id}">${v.plate}</option>`).join("");
+ document.getElementById("ownerDrivers").innerHTML=`<h2>Şoför Yönetimi</h2><div class="grid"><div><label>Ad Soyad</label><input id="newDriverName"></div><div><label>Telefon</label><input id="newDriverPhone"></div><div><label>Geçici Şifre</label><input id="newDriverPassword" value="123456"></div><div><label>Araç</label><select id="newDriverVehicle">${vehicleOptions}</select></div></div><button class="green" onclick="addDriver()">Şoför Ekle</button><h3>Kayıtlı Şoförler</h3><table><tr><th>Şoför</th><th>Plaka</th><th>Durum</th><th>İşlem</th></tr>${drivers.map(d=>`<tr><td>${d.users?.full_name||"-"}<br><small>${d.users?.phone||""}</small></td><td>${d.vehicles?.plate||"-"}</td><td><span class="badge">${d.is_active&&d.users?.is_active?"Aktif":"Pasif"}</span></td><td><button class="${d.is_active?"red":"green"}" onclick="toggleDriver(${d.id},${d.user_id},${!d.is_active})">${d.is_active?"Pasife Al":"Aktif Yap"}</button></td></tr>`).join("")}</table>`;
+}
+async function addDriver(){const name=document.getElementById("newDriverName").value.trim(),phone=document.getElementById("newDriverPhone").value.trim(),password=document.getElementById("newDriverPassword").value.trim()||"123456",vehicleId=Number(document.getElementById("newDriverVehicle").value);if(!name||!phone||!vehicleId){alert("Bilgileri gir.");return}const e=await sb("users?select=id&phone=eq."+encodeURIComponent(phone)+"&limit=1");if(e.length){alert("Telefon kayıtlı.");return}const u=await sb("users",{method:"POST",prefer:"return=representation",body:JSON.stringify({full_name:name,phone,role:"driver",password,is_active:true,owner_id:currentOwner.id,vehicle_id:vehicleId})});await sb("drivers",{method:"POST",prefer:"return=minimal",body:JSON.stringify({user_id:u[0].id,owner_id:currentOwner.id,vehicle_id:vehicleId,is_active:true})});alert("Şoför eklendi.");await refreshOwner();tabOwner("ownerDrivers")}
+async function toggleDriver(id,userId,newStatus){await sb("drivers?id=eq."+id,{method:"PATCH",prefer:"return=minimal",body:JSON.stringify({is_active:newStatus})});await sb("users?id=eq."+userId,{method:"PATCH",prefer:"return=minimal",body:JSON.stringify({is_active:newStatus})});await refreshOwner();tabOwner("ownerDrivers")}
+async function ownerBalances(){
+ const drivers=await getOwnerDrivers(),shifts=await getOwnerShifts(),payments=await getOwnerPayments(),expenses=await getOwnerExpenses();
+ return drivers.map(d=>{
+  const s=shifts.filter(x=>x.driver_id===d.id);
+  const p=payments.filter(x=>x.driver_id===d.id);
+  const ex=expenses.filter(x=>x.driver_id===d.id && (x.approved===true || x.status==="Onaylandı"));
+  const cash=s.reduce((a,x)=>a+Number(x.cash_amount||0),0);
+  const card=s.reduce((a,x)=>a+Number(x.card_amount||0),0);
+  const total=cash+card;
+  const paid=payTotal(p);
+  const exp=approvedExpenseTotal(ex);
+  return{id:d.id,name:d.users?.full_name||"-",plate:d.vehicles?.plate||"-",km:kmTotal(s),cash,card,income:total,paid,expense:exp,balance:cash-paid-exp}
+ })
+}
+async function renderOwnerCollect(){
+ const b=await ownerBalances();
+ document.getElementById("ownerCollect").innerHTML=`<h2>Tahsilat</h2><div class="status warn">Toplam hasılat nakit + POS olarak görünür. Tahsilat girildiğinde sadece nakit bakiye düşer.</div><label>Şoför</label><select id="collectDriver">${b.map(x=>`<option value="${x.id}">${x.name} / ${x.plate} / Nakit Bakiye: ${money(x.balance)}</option>`).join("")}</select><label>Teslim Alınan Nakit Tutar</label><input id="collectAmount" type="number"><label>Açıklama</label><input id="collectNote" placeholder="Elden teslim"><button class="green" onclick="collectPayment()">Teslim Aldım</button><h3>Cari</h3><table><tr><th>Şoför</th><th>KM</th><th>Toplam</th><th>POS</th><th>Tahsilat</th><th>Gider</th><th>Net Nakit Bakiye</th></tr>${b.map(x=>`<tr><td>${x.name}<br><small>${x.plate}</small></td><td>${x.km}</td><td>${money(x.income)}</td><td>${money(x.card)}</td><td>${money(x.paid)}</td><td>${money(x.expense)}</td><td>${money(x.balance)}</td></tr>`).join("")}</table>`;
+}
+async function collectPayment(){const driverId=Number(document.getElementById("collectDriver").value),amount=Number(document.getElementById("collectAmount").value||0),note=document.getElementById("collectNote").value||"Tahsilat";if(!driverId||!amount){alert("Şoför ve tutar gir.");return}await sb("payments",{method:"POST",prefer:"return=minimal",body:JSON.stringify({driver_id:driverId,amount,payment_type:note,approved:true})});alert("Tahsilat kaydedildi.");await refreshOwner();tabOwner("ownerCollect")}
+async function renderOwnerReports(){
+ const b=await ownerBalances();
+ const shifts=await getOwnerShifts(),payments=await getOwnerPayments(),expenses=await getOwnerExpenses();
+ const total=shiftTotal(shifts),cash=shifts.reduce((a,x)=>a+Number(x.cash_amount||0),0),card=shifts.reduce((a,x)=>a+Number(x.card_amount||0),0),paid=payTotal(payments),exp=approvedExpenseTotal(expenses);
+ function kmText(s){return (s.opening_km===null||s.closing_km===null||s.opening_km===undefined||s.closing_km===undefined)?"-":Number(s.closing_km-s.opening_km)}
+ document.getElementById("ownerReports").innerHTML=`<h2>Raporlar</h2><div class="status warn">Toplam hasılat = nakit + POS. Net nakit bakiye = nakit - tahsilat - onaylı gider.</div><div class="grid"><div class="box blueText"><b>Toplam KM</b><span>${kmTotal(shifts)}</span></div><div class="box greenText"><b>Toplam Hasılat</b><span>${money(total)}</span></div><div class="box greenText"><b>Nakit</b><span>${money(cash)}</span></div><div class="box blueText"><b>POS/Visa</b><span>${money(card)}</span></div><div class="box yellowText"><b>Tahsilat</b><span>${money(paid)}</span></div><div class="box yellowText"><b>Onaylı Gider</b><span>${money(exp)}</span></div><div class="box redText"><b>Net Nakit Bakiye</b><span>${money(cash-paid-exp)}</span></div></div><h3>Şoför Bazlı Özet</h3><table><tr><th>Şoför</th><th>KM</th><th>Toplam</th><th>POS</th><th>Tahsilat</th><th>Gider</th><th>Net Bakiye</th></tr>${b.map(x=>`<tr><td>${x.name}<br><small>${x.plate}</small></td><td>${x.km}</td><td>${money(x.income)}</td><td>${money(x.card)}</td><td>${money(x.paid)}</td><td>${money(x.expense)}</td><td>${money(x.balance)}</td></tr>`).join("")}</table><h3>Tarihli Vardiya Kayıtları</h3><table><tr><th>Tarih</th><th>Şoför</th><th>KM</th><th>Nakit</th><th>POS</th><th>Toplam</th></tr>${shifts.map(s=>`<tr><td>${s.shift_date||"-"}</td><td>${s.drivers?.users?.full_name||"-"}<br><small>${s.drivers?.vehicles?.plate||""}</small></td><td>${kmText(s)}</td><td>${money(s.cash_amount)}</td><td>${money(s.card_amount)}</td><td>${money(s.total_income)}</td></tr>`).join("")}</table><h3>Onaylı Gider Kayıtları</h3><table><tr><th>Tarih</th><th>Şoför</th><th>Tür</th><th>Tutar</th></tr>${expenses.filter(e=>e.approved===true||e.status==="Onaylandı").map(e=>`<tr><td>${e.expense_date||"-"}</td><td>${e.drivers?.users?.full_name||"-"}<br><small>${e.vehicles?.plate||""}</small></td><td>${e.expense_type||"-"}</td><td>${money(e.amount)}</td></tr>`).join("")}</table>`;
+}
+
+async function renderOwnerExpenses(){
+ try{
+  const expenses=await getOwnerExpenses();
+  const pending=expenses.filter(e=>expenseStatus(e)==="Bekliyor");
+  const approved=expenses.filter(e=>expenseStatus(e)==="Onaylandı");
+  const rejected=expenses.filter(e=>expenseStatus(e)==="Reddedildi");
+  const htmlRows = expenses.map(e=>`
+    <tr>
+      <td>${e.expense_date||"-"}</td>
+      <td>${e.drivers?.users?.full_name||"-"}<br><small>${e.vehicles?.plate||""}</small></td>
+      <td>${e.expense_type||"-"}<br><small>${e.note||""}</small></td>
+      <td>${money(e.amount)}</td>
+      <td>${expenseStatus(e)}</td>
+      <td>${expenseStatus(e)==="Bekliyor"
+        ? `<button class="green" onclick="approveExpense(${e.id})">Onayla</button><button class="red" onclick="rejectExpense(${e.id})">Reddet</button>`
+        : "-"}
+      </td>
+    </tr>
+  `).join("");
+  document.getElementById("ownerExpenses").innerHTML=`
+    <h2>Gider Onayları</h2>
+    <div class="status warn">Şoförün gönderdiği giderler burada görünür. Onaylanan gider net nakit bakiyeden düşer.</div>
+    <div class="grid">
+      <div class="box yellowText"><b>Bekleyen</b><span>${pending.length}</span></div>
+      <div class="box greenText"><b>Onaylı Gider</b><span>${money(approvedExpenseTotal(approved))}</span></div>
+      <div class="box redText"><b>Reddedilen</b><span>${rejected.length}</span></div>
+    </div>
+    <h3>Gider Kayıtları</h3>
+    <table>
+      <tr><th>Tarih</th><th>Şoför</th><th>Tür</th><th>Tutar</th><th>Durum</th><th>İşlem</th></tr>
+      ${htmlRows || "<tr><td colspan='6'>Henüz gider kaydı yok.</td></tr>"}
+    </table>
+  `;
+ }catch(e){
+  console.error(e);
+  document.getElementById("ownerExpenses").innerHTML=`<h2>Gider Onayları</h2><div class="status err">Giderler yüklenemedi: ${e.message}</div>`;
+ }
+}
+async function approveExpense(id){
+ await sb("expenses?id=eq."+id,{method:"PATCH",prefer:"return=minimal",body:JSON.stringify({approved:true,status:"Onaylandı"})});
+ await refreshOwner();tabOwner("ownerExpenses");
+}
+async function rejectExpense(id){
+ await sb("expenses?id=eq."+id,{method:"PATCH",prefer:"return=minimal",body:JSON.stringify({approved:false,status:"Reddedildi"})});
+ await refreshOwner();tabOwner("ownerExpenses");
+}
+
+async function changeOwnPassword(){
+ try{
+  const oldPass=document.getElementById("ownerOldPassword").value.trim(),newPass=document.getElementById("ownerNewPassword").value.trim(),newPass2=document.getElementById("ownerNewPassword2").value.trim();
+  if(!oldPass||!newPass||!newPass2){alert("Tüm alanları doldur.");return}
+  if(newPass.length<4){alert("Yeni şifre en az 4 karakter olmalı.");return}
+  if(newPass!==newPass2){alert("Yeni şifreler aynı değil.");return}
+  const check=await sb("users?select=id&phone=eq."+encodeURIComponent(currentUser.phone)+"&password=eq."+encodeURIComponent(oldPass)+"&limit=1");
+  if(!check.length){alert("Eski şifre hatalı.");return}
+  await sb("users?id=eq."+currentUser.id,{method:"PATCH",prefer:"return=minimal",body:JSON.stringify({password:newPass})});
+  localStorage.removeItem("taksi_remember_user");
+  alert("Şifren güncellendi. Yeni şifrenle tekrar giriş yap.");
+  logout();
+ }catch(e){alert("Şifre güncelleme hatası: "+e.message)}
+}
+
+// DRIVER
+async function loadDriver(){const d=await sb("drivers?select=*,owners(is_active),vehicles(plate)&user_id=eq."+currentUser.id+"&limit=1");if(!d.length||!d[0].is_active||!d[0].owners?.is_active){alert("Şoför pasif.");logout();return}currentDriver=d[0];document.getElementById("driverPanel").classList.remove("hidden");await refreshDriver();tabDriver("driverHome")}
+async function getDriverShifts(){return await sb("shifts?select=*&driver_id=eq."+currentDriver.id+"&order=shift_date.desc")}
+async function getDriverPayments(){return await sb("payments?select=*&driver_id=eq."+currentDriver.id+"&approved=eq.true&order=id.desc")}
+async function getDriverExpenses(){
+ return await sb("expenses?select=*,vehicles(plate)&driver_id=eq."+currentDriver.id+"&order=expense_date.desc");
+}
+async function driverBalance(){
+ const shifts=await getDriverShifts(),payments=await getDriverPayments(),expenses=await getDriverExpenses();
+ const cash=shifts.reduce((a,x)=>a+Number(x.cash_amount||0),0);
+ const card=shifts.reduce((a,x)=>a+Number(x.card_amount||0),0);
+ const inc=cash+card,paid=payTotal(payments),exp=approvedExpenseTotal(expenses);
+ return{shifts,payments,expenses,income:inc,cash,card,paid,expense:exp,balance:cash-paid-exp,km:kmTotal(shifts)}
+}
+async function refreshDriver(){const b=await driverBalance();renderDriverHome(b);renderDriverShift();renderDriverBalance(b);renderDriverExpense();renderDriverReport(b)}
+function renderDriverHome(b){
+ document.getElementById("driverHome").innerHTML=`<h2>Ana Ekran</h2><div class="grid"><div class="box blueText"><b>Plaka</b><span>${currentDriver.vehicles?.plate||"-"}</span></div><div class="box redText"><b>Net Nakit Bakiye</b><span>${money(b.balance)}</span></div><div class="box greenText"><b>Nakit</b><span>${money(b.cash)}</span></div><div class="box blueText"><b>POS/Visa</b><span>${money(b.card)}</span></div><div class="box greenText"><b>Toplam Hasılat</b><span>${money(b.income)}</span></div><div class="box blueText"><b>KM</b><span>${b.km}</span></div></div>`;
+}
+function renderDriverShift(){document.getElementById("driverShift").innerHTML=`<h2>Vardiya</h2><div class="status warn">KM isteğe bağlıdır. POS/Visa bakiyeye eklenmez; sadece nakit bakiye oluşturur.</div><label>Tarih</label><input id="shiftDate" type="date" value="${todayISO()}"><label>Açılış KM <small>(isteğe bağlı)</small></label><input id="openingKm" type="number" placeholder="Boş bırakılabilir"><label>Kapanış KM <small>(isteğe bağlı)</small></label><input id="closingKm" type="number" placeholder="Boş bırakılabilir"><label>Nakit</label><input id="cashAmount" type="number" value="0"><label>Kart/POS</label><input id="cardAmount" type="number" value="0"><button class="green" onclick="saveShift()">Kaydet</button>`}
+async function saveShift(){
+  const openingRaw=document.getElementById("openingKm").value.trim();
+  const closingRaw=document.getElementById("closingKm").value.trim();
+  const opening=openingRaw===""?null:Number(openingRaw);
+  const closing=closingRaw===""?null:Number(closingRaw);
+  const cash=Number(document.getElementById("cashAmount").value||0);
+  const card=Number(document.getElementById("cardAmount").value||0);
+
+  if(!(cash+card)){
+    alert("Nakit veya Kart/POS hasılatı gir.");
+    return;
+  }
+
+  if(opening!==null && closing!==null && closing<opening){
+    alert("Kapanış KM, açılış KM'den düşük olamaz.");
+    return;
+  }
+
+  await sb("shifts",{
+    method:"POST",
+    prefer:"return=minimal",
+    body:JSON.stringify({
+      driver_id:currentDriver.id,
+      vehicle_id:currentDriver.vehicle_id,
+      shift_date:document.getElementById("shiftDate").value,
+      opening_km:opening,
+      closing_km:closing,
+      cash_amount:cash,
+      card_amount:card,
+      total_income:cash+card
+    })
+  });
+
+  alert("Kaydedildi. KM boş olsa bile hasılat kaydı oluşturuldu.");
+  await refreshDriver();
+  tabDriver("driverBalance");
+}
+function renderDriverBalance(b){
+ const rows=[...b.shifts.map(s=>({date:s.shift_date,type:"Hasılat",cash:Number(s.cash_amount||0),card:Number(s.card_amount||0),paid:0,expense:0})),...b.payments.map(p=>({date:(p.created_at||"").slice(0,10),type:p.payment_type||"Tahsilat",cash:0,card:0,paid:Number(p.amount||0),expense:0})),...b.expenses.filter(e=>e.approved===true||e.status==="Onaylandı").map(e=>({date:e.expense_date||"-",type:"Gider: "+(e.expense_type||""),cash:0,card:0,paid:0,expense:Number(e.amount||0)}))];
+ document.getElementById("driverBalance").innerHTML=`<h2>Bakiye</h2><div class="status warn">Net nakit bakiye = nakit - teslim - onaylı gider.</div><div class="grid"><div class="box greenText"><b>Nakit</b><span>${money(b.cash)}</span></div><div class="box blueText"><b>POS/Visa</b><span>${money(b.card)}</span></div><div class="box yellowText"><b>Teslim</b><span>${money(b.paid)}</span></div><div class="box yellowText"><b>Onaylı Gider</b><span>${money(b.expense)}</span></div><div class="box redText"><b>Net Nakit Bakiye</b><span>${money(b.balance)}</span></div></div><table><tr><th>Tarih</th><th>İşlem</th><th>Nakit</th><th>POS</th><th>Teslim</th><th>Gider</th></tr>${rows.map(r=>`<tr><td>${r.date}</td><td>${r.type}</td><td>${money(r.cash)}</td><td>${money(r.card)}</td><td>${money(r.paid)}</td><td>${money(r.expense)}</td></tr>`).join("")}</table>`;
+}
+function renderDriverExpense(){
+ document.getElementById("driverExpense").innerHTML=`<h2>Gider Ekle</h2><div class="status warn">Bu gider araç sahibinin onayına düşer. Onaylanırsa nakit bakiyeden düşer.</div><label>Tarih</label><input id="expenseDate" type="date" value="${todayISO()}"><label>Gider Türü</label><select id="expenseType"><option>Yakıt</option><option>Yıkama</option><option>Otopark</option><option>Bakım</option><option>Tamirat</option><option>Lastik</option><option>Diğer</option></select><label>Tutar</label><input id="expenseAmount" type="number"><label>Açıklama</label><input id="expenseNote" placeholder="Açıklama"><button class="green" onclick="saveExpense()">Gideri Gönder</button>`;
+}
+async function saveExpense(){
+ const amount=Number(document.getElementById("expenseAmount").value||0);
+ if(!amount){alert("Gider tutarı gir.");return}
+ await sb("expenses",{method:"POST",prefer:"return=minimal",body:JSON.stringify({owner_id:currentDriver.owner_id,driver_id:currentDriver.id,vehicle_id:currentDriver.vehicle_id,expense_date:document.getElementById("expenseDate").value,expense_type:document.getElementById("expenseType").value,amount:amount,note:document.getElementById("expenseNote").value||"",approved:false,status:"Bekliyor"})});
+ alert("Gider araç sahibinin onayına gönderildi.");
+ await refreshDriver();
+ tabDriver("driverBalance");
+}
+function renderDriverReport(b){
+ document.getElementById("driverReport").innerHTML=`<h2>Raporum</h2><div class="grid"><div class="box blueText"><b>Gün</b><span>${b.shifts.length}</span></div><div class="box blueText"><b>KM</b><span>${b.km}</span></div><div class="box greenText"><b>Nakit</b><span>${money(b.cash)}</span></div><div class="box blueText"><b>POS/Visa</b><span>${money(b.card)}</span></div><div class="box greenText"><b>Toplam</b><span>${money(b.income)}</span></div><div class="box redText"><b>Nakit Bakiye</b><span>${money(b.balance)}</span></div></div>`;
+}
+autoLoginIfRemembered();
+</script>
+</body>
+</html>
