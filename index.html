@@ -476,8 +476,13 @@ async function renderOwnerCollect(){
 async function collectPayment(){const driverId=Number(document.getElementById("collectDriver").value),amount=Number(document.getElementById("collectAmount").value||0),note=document.getElementById("collectNote").value||"Tahsilat";if(!driverId||!amount){alert("Şoför ve tutar gir.");return}await sb("payments",{method:"POST",prefer:"return=minimal",body:JSON.stringify({driver_id:driverId,amount,payment_type:note,approved:true})});alert("Tahsilat kaydedildi.");await refreshOwner();tabOwner("ownerCollect")}
 
 async function exportOwnerCSV(){
- const shifts=await getOwnerShifts(),payments=await getOwnerPayments(),expenses=await getOwnerExpenses();
- const rows=[["Tarih","Şoför","Plaka","Nakit","POS","Aidat","Toplam Hasılat","Araca Yazılan","Artı/Eksi Fark","Teslimat","Onaylı Gider","Teslim Edilecek Nakit"]];
+ const rows=[[
+"Plaka",
+"Nakit",
+"POS",
+"Aidat",
+"Toplam"
+]];
  shifts.forEach(s=>{
    const driver=s.drivers?.users?.full_name||"-";
    const plate=s.drivers?.vehicles?.plate||"-";
